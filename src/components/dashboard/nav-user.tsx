@@ -92,15 +92,6 @@ export function NavUser({
             
             <DropdownMenuSeparator />
             
-            <DropdownMenuItem className="cursor-pointer">
-              <SettingsIcon className="mr-2 size-4" />
-              Cài đặt tài khoản
-            </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer">
-              <CreditCardIcon className="mr-2 size-4" />
-              Nạp tiền / Thanh toán
-            </DropdownMenuItem>
-            
             <DropdownMenuSeparator />
             
             <DropdownMenuItem 
