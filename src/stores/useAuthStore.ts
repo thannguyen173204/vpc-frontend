@@ -23,7 +23,7 @@ export const useAuthStore = create<AuthState>()(
                         accessToken: response.accessToken || response.token,
                         user: response.user || { 
                             user_name: username, 
-                            display_name: "Quản trị viên",
+                            display_name: "",
                             avt_url: ""
                         } 
                     });
@@ -31,7 +31,7 @@ export const useAuthStore = create<AuthState>()(
                     toast.success('Đăng nhập thành công.');
                     return true;
                 } catch (error: any) {
-                    const errorMessage = error.response?.data?.error?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại kết nối.';
+                    const errorMessage = error.response?.data?.error?.message || 'Đăng nhập thất bại. Server đang offline vui lòng thử lại sau.';
                     toast.error(errorMessage);
                     return false;
                 } finally {
