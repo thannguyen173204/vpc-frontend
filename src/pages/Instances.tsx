@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router"; // Dùng 'next/navigation' nếu là Next.js
-
+import { useSearchParams } from "react-router"; 
 import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { 
@@ -19,14 +18,13 @@ import { vmService } from "@/services/vmService";
 import { VmDataTable, type VirtualMachine } from "@/components/vm/VmDataTable";
 import { VmCreateModal } from "@/components/vm/VmCreateModal";
 import { VmConfigModal } from "@/components/vm/VmConfigModal";
-
-// IMPORT ZUSTAND VÀO ĐÂY
 import { useNotificationStore } from "@/stores/useNotificationStore";
 
 export default function Instances() {
   const [vms, setVms] = useState<VirtualMachine[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [systemStats, setSystemStats] = useState<any>(null); // Lưu thông số ESXi
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
@@ -34,8 +32,6 @@ export default function Instances() {
   const [isSubmittingConfig, setIsSubmittingConfig] = useState(false);
 
   const [searchParams] = useSearchParams();
-
-  // KÉO HÀM TỪ KHO ZUSTAND RA ĐỂ SỬ DỤNG
   const addNotification = useNotificationStore((state) => state.addNotification);
 
   useEffect(() => {
@@ -44,22 +40,24 @@ export default function Instances() {
     }
   }, [searchParams]);
 
-  const fetchVMs = async () => {
+  const fetchData = async () => {
     try {
-      const data = await vmService.getAllInstances();
-      setVms(data);
+      const [vmsData, statsData] = await Promise.all([
+        vmService.getAllInstances(),
+        vmService.getSystemStats()
+      ]);
+      setVms(vmsData);
+      setSystemStats(statsData);
     } catch (error) {
-      toast.error("Lỗi tải danh sách VM.");
+      toast.error("Lỗi đồng bộ dữ liệu.");
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchVMs();
-    const interval = setInterval(() => {
-      vmService.getAllInstances().then(setVms).catch(() => { });
-    }, 10000);
+    fetchData();
+    const interval = setInterval(fetchData, 15000); // 15s cập nhật 1 lần
     return () => clearInterval(interval);
   }, []);
 
@@ -74,13 +72,11 @@ export default function Instances() {
       };
       await actionMap[action](vmName);
 
-      // BẮN THÔNG BÁO: KHI START/STOP/RESTART/DELETE THÀNH CÔNG
       const msg = `Thực hiện ${action} thành công trên máy ảo ${vmName}`;
       toast.success(msg);
-      addNotification(msg); // Lưu vào Inbox
+      addNotification(msg);
 
-      if (action === 'delete') fetchVMs();
-      else setVms(prev => prev.map(vm => vm.vm_name === vmName ? { ...vm, status: 'pending' } : vm));
+      fetchData(); // Load lại toàn bộ data
     } catch (error: any) {
       toast.error(error.response?.data?.error?.message || `Lỗi thao tác ${action}`);
     } finally {
@@ -94,12 +90,11 @@ export default function Instances() {
     try {
       await vmService.createVm(payload);
       
-      // BẮN THÔNG BÁO: KHI TẠO VM THÀNH CÔNG
       const msg = `Khởi tạo thành công máy ảo ${payload.vmName}`;
       toast.success(msg);
-      addNotification(msg); // Lưu vào Inbox
+      addNotification(msg);
       
-      fetchVMs();
+      fetchData();
     } catch (error: any) {
       toast.error(error.response?.data?.error?.message || "Lỗi tạo VM");
     }
@@ -111,13 +106,12 @@ export default function Instances() {
     try {
       await vmService.configVm({ vmName: selectedVm.vm_name, ...formData });
       
-      // BẮN THÔNG BÁO: KHI CẤU HÌNH VM THÀNH CÔNG
       const msg = `Đã cập nhật cấu hình cho máy ảo ${selectedVm.vm_name}`;
       toast.success(msg);
-      addNotification(msg); // Lưu vào Inbox
+      addNotification(msg);
       
       setIsConfigOpen(false);
-      fetchVMs();
+      fetchData();
     } catch (error: any) {
       toast.error(error.response?.data?.error?.message || "Lỗi cấu hình");
     } finally {
@@ -175,7 +169,12 @@ export default function Instances() {
           </div>
         </div>
 
-        <VmCreateModal open={isCreateOpen} onOpenChange={setIsCreateOpen} onSubmit={handleCreateVm} />
+        <VmCreateModal 
+          open={isCreateOpen} 
+          onOpenChange={setIsCreateOpen} 
+          onSubmit={handleCreateVm} 
+          systemStats={systemStats} 
+        />
         <VmConfigModal 
           vm={selectedVm} 
           open={isConfigOpen} 

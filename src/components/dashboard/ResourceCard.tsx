@@ -5,18 +5,22 @@ import { type LucideIcon } from "lucide-react";
 
 interface ResourceCardProps {
   title: string;
-  percent: number;
+  percent: number | string; // Cho phép nhận cả chuỗi phòng hờ lỗi API
   detail: string;
   icon: LucideIcon;
 }
 
 export const ResourceCard = memo(({ title, percent, detail, icon: Icon }: ResourceCardProps) => {
+  // ÉP KIỂU VỀ SỐ THỰC: Chìa khóa để biểu đồ luôn hiện màu!
+  const safePercent = Number(percent) || 0;
+
   const data = [
-    { name: "Used", value: percent },
-    { name: "Free", value: Math.max(0, 100 - percent) },
+    { name: "Used", value: safePercent },
+    { name: "Free", value: Math.max(0, 100 - safePercent) },
   ];
 
-  const strokeColor = percent >= 85 ? "#ef4444" : percent >= 60 ? "#f59e0b" : "#10b981";
+  // Logic đổi màu: > 85% Đỏ, > 60% Vàng, còn lại Xanh
+  const strokeColor = safePercent >= 85 ? "#ef4444" : safePercent >= 60 ? "#f59e0b" : "#10b981";
 
   return (
     <Card className="flex flex-col shadow-sm">
@@ -31,7 +35,7 @@ export const ResourceCard = memo(({ title, percent, detail, icon: Icon }: Resour
           <ResponsiveContainer width="100%" height="100%" debounce={100}>
             <PieChart>
               <Pie
-                isAnimationActive={false} // LUÔN TẮT CHO PIE VÌ NÓ NHỎ
+                isAnimationActive={false}
                 data={data}
                 cx="50%"
                 cy="50%"
@@ -42,19 +46,24 @@ export const ResourceCard = memo(({ title, percent, detail, icon: Icon }: Resour
                 dataKey="value"
                 stroke="none"
               >
-                <Cell fill={strokeColor} />
-                <Cell fill="#f1f5f9" />
+                {/* Bắt buộc phải có thuộc tính key */}
+                <Cell key="used" fill={strokeColor} />
+                <Cell key="free" fill="#f1f5f9" />
               </Pie>
             </PieChart>
           </ResponsiveContainer>
+          
           <div className="absolute inset-0 flex items-center justify-center flex-col">
-            <span className="text-2xl font-bold" style={{ color: strokeColor }}>{percent}%</span>
+            <span className="text-2xl font-bold" style={{ color: strokeColor }}>
+              {safePercent.toFixed(1)}%
+            </span>
           </div>
         </div>
-        <div className="text-center text-xs text-muted-foreground mt-2 pb-4">{detail}</div>
+        
+        <div className="mt-2 text-center text-xs text-muted-foreground font-mono">
+          {detail}
+        </div>
       </CardContent>
     </Card>
   );
 });
-
-ResourceCard.displayName = "ResourceCard";

@@ -4,12 +4,7 @@ import { useEffect, useState } from "react";
 import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { 
-  Breadcrumb, 
-  BreadcrumbItem, 
-  BreadcrumbLink, 
-  BreadcrumbList, 
-  BreadcrumbPage, 
-  BreadcrumbSeparator 
+  Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator 
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { Cpu, Activity, HardDrive, Loader2 } from "lucide-react";
@@ -21,10 +16,15 @@ import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
 export default function Page() {
   const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // 1. TẠO STATE LƯU TRỮ MỐC THỜI GIAN
+  const [timeRange, setTimeRange] = useState<'1h' | '8h' | '24h'>('1h');
 
-  const fetchStats = async () => {
+  // 2. TRUYỀN THỜI GIAN XUỐNG API
+  const fetchStats = async (range = timeRange) => {
     try {
-      const data = await vmService.getSystemStats();
+      setIsLoading(true); // Hiển thị loading nhẹ khi đổi tab
+      const data = await vmService.getSystemStats(range);
       setStats(data);
     } catch (error) {
       console.error("Lỗi:", error);
@@ -33,11 +33,12 @@ export default function Page() {
     }
   };
 
+  // 3. TỰ ĐỘNG GỌI LẠI API KHI timeRange THAY ĐỔI
   useEffect(() => {
-    fetchStats();
-    const interval = setInterval(fetchStats, 30000);
+    fetchStats(timeRange);
+    const interval = setInterval(() => fetchStats(timeRange), 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [timeRange]); // <-- useEffect sẽ theo dõi biến này
 
   return (
     <SidebarProvider>
@@ -74,7 +75,11 @@ export default function Page() {
             ) : null}
           </div>
 
-          <PerformanceChart data={stats?.history || []} />
+          {/* 4. TRUYỀN SỰ KIỆN setTimeRange CHO BIỂU ĐỒ */}
+          <PerformanceChart 
+            data={stats?.history || []} 
+            onTimeRangeChange={setTimeRange} 
+          />
         </div>
       </SidebarInset>
     </SidebarProvider>
