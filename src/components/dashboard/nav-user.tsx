@@ -17,7 +17,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { EllipsisVerticalIcon, LogOutIcon, UserIcon, SettingsIcon, CreditCardIcon } from "lucide-react"
+import { EllipsisVerticalIcon, LogOutIcon, UserIcon } from "lucide-react"
 import { useNavigate } from "react-router"
 import { useAuthStore } from "@/stores/useAuthStore"
 
@@ -39,7 +39,6 @@ export function NavUser({
     navigate('/login')
   }
 
-  // Component Avatar dùng chung để đảm bảo đồng nhất UI
   const UserAvatar = () => (
     <Avatar className="h-8 w-8 rounded-lg border border-black/10 dark:border-white/10 bg-white p-0.5 shadow-sm">
       <AvatarImage 
