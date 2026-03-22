@@ -25,110 +25,120 @@ export const VmCreateModal = ({ open, onOpenChange, onSubmit, systemStats }: VmC
     osName: "ubuntu"
   });
 
-  // TÍNH TOÁN TÀI NGUYÊN KHẢ DỤNG TỪ CHUỖI CỦA BACKEND
-  let availableRamMB = 999999;
-  let availableDiskGB = 999999;
+  // TÍNH TOÁN TÀI NGUYÊN (Giữ nguyên logic của bạn nhưng thêm fallback an toàn)
+  let availableRamMB = 0;
+  let availableDiskGB = 0;
   
   if (systemStats) {
     try {
-      // Parse ram.detail ví dụ: "2.0 / 16.0 GB"
       if (systemStats.ram?.detail) {
         const parts = systemStats.ram.detail.split(' / ');
-        const used = parseFloat(parts[0]);
-        const total = parseFloat(parts[1]);
-        availableRamMB = Math.floor((total - used) * 1024);
+        availableRamMB = Math.floor((parseFloat(parts[1]) - parseFloat(parts[0])) * 1024);
       }
-      // Parse disk.detail ví dụ: "50.0 / 500.0 GB"
       if (systemStats.disk?.detail) {
         const parts = systemStats.disk.detail.split(' / ');
-        const used = parseFloat(parts[0]);
-        const total = parseFloat(parts[1]);
-        availableDiskGB = Math.floor(total - used);
+        availableDiskGB = Math.floor(parseFloat(parts[1]) - parseFloat(parts[0]));
       }
     } catch (e) {
-      console.error("Lỗi parse thông số tài nguyên:", e);
+      console.error("Lỗi parse thông số:", e);
     }
   }
 
-  // LOGIC CHẶN FRONTEND
-  const isCpuOver = data.cpu > 8; // Giới hạn cứng 8 core trên UI
+  const isCpuOver = data.cpu > 8;
   const isRamOver = data.ram > availableRamMB;
   const isDiskOver = data.disk > availableDiskGB;
   const isInvalid = isCpuOver || isRamOver || isDiskOver;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!/^[a-zA-Z0-9-]+$/.test(data.vmName)) return toast.error("Tên VM chỉ chứa chữ cái không dấu, số và dấu gạch ngang (-)");
-    if (isInvalid) return toast.error("Vui lòng điều chỉnh thông số không vượt quá tài nguyên hệ thống!");
+    if (!/^[a-zA-Z0-9-]+$/.test(data.vmName)) return toast.error("Tên VM không hợp lệ");
+    if (isInvalid) return toast.error("Vượt quá tài nguyên!");
     
-    onSubmit({
-      ...data,
-      cpu: Number(data.cpu),
-      ram: Number(data.ram),
-      disk: Number(data.disk)
-    });
+    onSubmit({ ...data, cpu: Number(data.cpu), ram: Number(data.ram), disk: Number(data.disk) });
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Khởi tạo máy ảo mới</DialogTitle>
+      <DialogContent className="sm:max-w-[500px] gap-0 p-0 overflow-hidden">
+        <DialogHeader className="p-6 pb-0">
+          <DialogTitle className="text-xl">Khởi tạo máy ảo mới</DialogTitle>
         </DialogHeader>
 
-        {/* CẢNH BÁO 10 PHÚT */}
-        <div className="bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900/50 rounded-lg p-3 flex gap-3 text-orange-800 dark:text-orange-300 text-sm">
-            <AlertCircle className="size-5 shrink-0 mt-0.5" />
-            <div className="flex flex-col gap-1">
-                <p className="font-semibold">Giới hạn hệ thống (Trải nghiệm)</p>
-                <p>Vì tài nguyên máy chủ có hạn, máy ảo của bạn sẽ <strong>tự động bị thu hồi và xóa sạch sau 10 phút</strong>. Vui lòng lưu lại dữ liệu trước khi hết giờ.</p>
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* CẢNH BÁO */}
+          <div className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/50 rounded-xl p-4 flex gap-3 text-orange-800 dark:text-orange-300 text-sm">
+            <AlertCircle className="size-5 shrink-0" />
+            <div className="space-y-1">
+              <p className="font-bold leading-none">Giới hạn hệ thống (Trải nghiệm)</p>
+              <p className="opacity-90">Máy ảo sẽ tự động bị xóa sạch sau <span className="font-bold">10 phút</span>.</p>
             </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="grid gap-4 py-2">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Tên máy ảo (Ký tự & số)</Label>
-              <Input required value={data.vmName} onChange={(e) => setData({...data, vmName: e.target.value})} placeholder="vidu-vm-01" />
-            </div>
-            <div className="space-y-2">
-              <Label>Hệ điều hành</Label>
-              <Select value={data.osName} onValueChange={(v) => setData({...data, osName: v})}>
-                <SelectTrigger><SelectValue placeholder="Chọn OS" /></SelectTrigger>
-                <SelectContent><SelectItem value="ubuntu">Ubuntu 22.04 LTS</SelectItem></SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2"><Label>Username</Label><Input required value={data.vmUsername} onChange={(e) => setData({...data, vmUsername: e.target.value})} /></div>
-            <div className="space-y-2"><Label>Password</Label><Input type="password" required value={data.vmPassword} onChange={(e) => setData({...data, vmPassword: e.target.value})} /></div>
-          </div>
-          
-          {/* HIỂN THỊ TÀI NGUYÊN KHẢ DỤNG */}
-          <div className="grid grid-cols-3 gap-4 border-t pt-4 bg-muted/20 p-3 rounded-lg mt-2">
-            <div className="space-y-2">
-              <Label className={isCpuOver ? "text-destructive" : ""}>CPU (Max: 8)</Label>
-              <Input type="number" className={isCpuOver ? "border-destructive focus-visible:ring-destructive" : ""} value={data.cpu} onChange={(e) => setData({...data, cpu: Number(e.target.value)})} />
-            </div>
-            <div className="space-y-2">
-              <Label className={isRamOver ? "text-destructive" : ""}>RAM (Trống {availableRamMB === 999999 ? '?' : availableRamMB} MB)</Label>
-              <Input type="number" step="512" className={isRamOver ? "border-destructive focus-visible:ring-destructive" : ""} value={data.ram} onChange={(e) => setData({...data, ram: Number(e.target.value)})} />
-            </div>
-            <div className="space-y-2">
-              <Label className={isDiskOver ? "text-destructive" : ""}>Disk (Trống {availableDiskGB === 999999 ? '?' : availableDiskGB} GB)</Label>
-              <Input type="number" className={isDiskOver ? "border-destructive focus-visible:ring-destructive" : ""} value={data.disk} onChange={(e) => setData({...data, disk: Number(e.target.value)})} />
-            </div>
-            
-            {isInvalid && (
-              <p className="col-span-3 text-xs text-destructive flex items-center gap-1 mt-1">
-                <InfoIcon className="size-3.5" /> Thông số nhập vào cao hơn tài nguyên còn trống của hệ thống.
-              </p>
-            )}
           </div>
 
-          <DialogFooter className="mt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
-            <Button type="submit" disabled={isInvalid}>
+          <div className="space-y-4">
+            {/* ROW 1: Tên & OS */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Tên máy ảo</Label>
+                <Input required value={data.vmName} onChange={(e) => setData({...data, vmName: e.target.value})} placeholder="my-vm-01" className="bg-background" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Hệ điều hành</Label>
+                <Select value={data.osName} onValueChange={(v) => setData({...data, osName: v})}>
+                  <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ubuntu">Ubuntu 22.04 LTS</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* ROW 2: Auth */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Username</Label>
+                <Input required value={data.vmUsername} onChange={(e) => setData({...data, vmUsername: e.target.value})} className="bg-background" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Password</Label>
+                <Input type="password" required value={data.vmPassword} onChange={(e) => setData({...data, vmPassword: e.target.value})} placeholder="••••••••" className="bg-background" />
+              </div>
+            </div>
+
+            {/* ROW 3: HARDWARE (BOX XÁM) */}
+            <div className="bg-muted/40 rounded-xl p-4 border border-dashed border-muted-foreground/20 space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label className={`text-[11px] uppercase tracking-wider font-bold ${isCpuOver ? "text-destructive" : "text-muted-foreground"}`}>CPU (Max: 8)</Label>
+                  <Input type="number" className="h-9 bg-background" value={data.cpu} onChange={(e) => setData({...data, cpu: Number(e.target.value)})} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className={`text-[11px] uppercase tracking-wider font-bold ${isRamOver ? "text-destructive" : "text-muted-foreground"}`}>RAM (MB)</Label>
+                  <Input type="number" step="512" className="h-9 bg-background" value={data.ram} onChange={(e) => setData({...data, ram: Number(e.target.value)})} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className={`text-[11px] uppercase tracking-wider font-bold ${isDiskOver ? "text-destructive" : "text-muted-foreground"}`}>Disk (GB)</Label>
+                  <Input type="number" className="h-9 bg-background" value={data.disk} onChange={(e) => setData({...data, disk: Number(e.target.value)})} />
+                </div>
+              </div>
+
+              {/* RESOURCE INFO */}
+              <div className="flex flex-col gap-1 px-1">
+                <div className="flex items-center justify-between text-[10px] font-medium uppercase text-muted-foreground/70">
+                   <span>Trống: {availableRamMB}MB RAM</span>
+                   <span>Trống: {availableDiskGB}GB Disk</span>
+                </div>
+                {isInvalid && (
+                  <p className="text-[11px] text-destructive flex items-center gap-1 font-medium">
+                    <InfoIcon className="size-3" /> Tài nguyên yêu cầu vượt mức khả dụng.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Hủy</Button>
+            <Button type="submit" disabled={isInvalid} className="min-w-[120px]">
               {isInvalid ? "Không đủ tài nguyên" : "Tạo máy ảo"}
             </Button>
           </DialogFooter>
