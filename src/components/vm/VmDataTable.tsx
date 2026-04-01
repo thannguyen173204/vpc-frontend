@@ -41,7 +41,7 @@ const VMCountdown = ({ createdAt, status }: { createdAt?: string, status: string
 
         const calculateTime = () => {
             const createdTime = new Date(createdAt).getTime();
-            const expireTime = createdTime + 10 * 60 * 1000; // 10 phút
+            const expireTime = createdTime + 9999 * 60 * 1000; // 10 phút
             const now = new Date().getTime();
             const diff = expireTime - now;
 
